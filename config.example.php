@@ -14,7 +14,7 @@ return [
     'channel_secret' => '09cc97b54fab9f912a40f40136fca303',
     
     // Webhook URL (this should point to your webhook.php file)
-    'webhook_url' => 'https://https://ikeman.zhuge.jp/webhook.php',
+    'webhook_url' => 'https://ikeman.zhuge.jp/webhook.php',
     
     // Debug mode (set to false in production)
     'debug' => true,

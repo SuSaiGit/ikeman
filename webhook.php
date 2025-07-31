@@ -114,11 +114,11 @@ try {
                     // Process the message and generate a response
                     $response = processTextMessage($userMessage, $userId);
                     
-                    // Reply to the user (uncomment when you have your access token)
-                    // if ($replyToken) {
-                    //     $result = replyMessage($replyToken, $response, $channel_access_token);
-                    //     logMessage("Reply sent: " . json_encode($result));
-                    // }
+                    Reply to the user (uncomment when you have your access token)
+                    if ($replyToken) {
+                        $result = replyMessage($replyToken, $response, $channel_access_token);
+                        logMessage("Reply sent: " . json_encode($result));
+                    }
                     
                 } elseif ($messageType === 'image') {
                     logMessage("Image message received");
