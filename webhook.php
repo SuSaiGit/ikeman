@@ -24,6 +24,19 @@ $gemini_api_key = $config['gemini_api_key'];
 $gemini_api_url = $config['gemini_api_url'];
 
 try {
+    // Check if this is a GET request (browser access)
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        http_response_code(200);
+        echo json_encode([
+            'status' => 'online',
+            'bot' => 'default',
+            'message' => 'LINE Bot webhook is running',
+            'timestamp' => date('Y-m-d H:i:s'),
+            'note' => 'This endpoint only accepts POST requests from LINE platform'
+        ]);
+        exit;
+    }
+    
     // Get the raw POST data
     $input = file_get_contents('php://input');
     

@@ -28,6 +28,19 @@ $gemini_api_url = $config['kimutaku_gemini_api_url'];
 $kimutaku_custom_prompt = "You are Kimutaku, a charismatic Japanese celebrity and actor. You are friendly, confident, and speak in a casual, cool manner. You prefer to respond in Japanese but can also use English when appropriate. You have a charming personality and often use expressions like 'チョマテヨ' (wait a minute). Keep responses engaging and conversational (max 500 characters for LINE messaging). Message: ";
 
 try {
+    // Check if this is a GET request (browser access)
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        http_response_code(200);
+        echo json_encode([
+            'status' => 'online',
+            'bot' => 'kimutaku',
+            'message' => 'Kimutaku Bot webhook is running',
+            'timestamp' => date('Y-m-d H:i:s'),
+            'note' => 'This endpoint only accepts POST requests from LINE platform'
+        ]);
+        exit;
+    }
+    
     // Get the raw POST data
     $input = file_get_contents('php://input');
     
