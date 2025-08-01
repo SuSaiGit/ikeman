@@ -12,9 +12,12 @@ ini_set('display_errors', 1);
 header('Content-Type: application/json');
 
 // LINE Bot configuration
-// TODO: Replace with your actual LINE Bot credentials
 $channel_access_token = 'l00u1TIZSKGXSAi4occtJt9NOqTUULyyfNIKOjRVgMFyOPZGD35nBKWP85HbrV9DG2NytACYjqkXBCKpBmVmnY9PhDa8HGfqpI2D9cASTZtJmhsTcdeeQy3wRWDINBRn2hJUqGggyrUaBI79nmSJjAdB04t89/1O/w1cDnyilFU=';
 $channel_secret = '09cc97b54fab9f912a40f40136fca303';
+
+// Gemini API configuration
+$gemini_api_key = 'AIzaSyAFfJqVL8eV8MmLaqyNj2to3vDLlDEwu6k'; // Replace with your actual Gemini API key
+$gemini_api_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
 
 /**
  * Verify the request signature from LINE
@@ -62,6 +65,67 @@ function replyMessage($replyToken, $message, $accessToken) {
 }
 
 /**
+ * Call Gemini API to generate response
+ */
+function callGeminiAPI($message, $apiKey, $apiUrl) {
+    $data = [
+        'contents' => [
+            [
+                'parts' => [
+                    [
+                        'text' => $message
+                    ]
+                ]
+            ]
+        ],
+        'generationConfig' => [
+            'temperature' => 0.7,
+            'topK' => 40,
+            'topP' => 0.95,
+            'maxOutputTokens' => 1024
+        ]
+    ];
+    
+    $headers = [
+        'Content-Type: application/json',
+        'x-goog-api-key: ' . $apiKey
+    ];
+    
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    
+    $result = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+    
+    if ($error) {
+        logMessage("Gemini API CURL Error: " . $error);
+        return "Sorry, I'm having trouble connecting to my AI brain right now.";
+    }
+    
+    if ($httpCode !== 200) {
+        logMessage("Gemini API HTTP Error: $httpCode - $result");
+        return "Sorry, I'm experiencing some technical difficulties.";
+    }
+    
+    $response = json_decode($result, true);
+    
+    if (!$response || !isset($response['candidates'][0]['content']['parts'][0]['text'])) {
+        logMessage("Gemini API Invalid Response: " . $result);
+        return "Sorry, I couldn't generate a proper response.";
+    }
+    
+    return $response['candidates'][0]['content']['parts'][0]['text'];
+}
+
+/**
  * Log messages for debugging
  */
 function logMessage($message) {
@@ -80,7 +144,7 @@ try {
     // Get the signature from headers
     $signature = $_SERVER['HTTP_X_LINE_SIGNATURE'] ?? '';
     
-    Verify the signature (uncomment when you have your channel secret)
+    // Verify the signature (uncomment when you have your channel secret)
     if (!verifySignature($input, $signature, $channel_secret)) {
         http_response_code(400);
         echo json_encode(['error' => 'Invalid signature']);
@@ -107,18 +171,29 @@ try {
                 
                 if ($messageType === 'text') {
                     $userMessage = $event['message']['text'];
+                    $sourceType = $event['source']['type'] ?? 'unknown';
                     $userId = $event['source']['userId'] ?? 'unknown';
+                    $groupId = $event['source']['groupId'] ?? null;
+                    $roomId = $event['source']['roomId'] ?? null;
                     
-                    logMessage("Text message from $userId: $userMessage");
+                    // Log message with context
+                    $context = "private chat";
+                    if ($sourceType === 'group') {
+                        $context = "group chat (ID: $groupId)";
+                    } elseif ($sourceType === 'room') {
+                        $context = "room chat (ID: $roomId)";
+                    }
+                    
+                    logMessage("Text message from $userId in $context: $userMessage");
                     
                     // Process the message and generate a response
                     $response = processTextMessage($userMessage, $userId);
                     
-                    // Reply to the user (uncomment when you have your access token)
-                    // if ($replyToken) {
-                    //     $result = replyMessage($replyToken, $response, $channel_access_token);
-                    //     logMessage("Reply sent: " . json_encode($result));
-                    // }
+                    // Reply to the user
+                    if ($replyToken) {
+                        $result = replyMessage($replyToken, $response, $channel_access_token);
+                        logMessage("Reply sent to $context: " . json_encode($result));
+                    }
                     
                 } elseif ($messageType === 'image') {
                     logMessage("Image message received");
@@ -169,34 +244,49 @@ try {
 }
 
 /**
- * Process text messages and generate responses
+ * Process text messages and generate responses using Gemini AI
  */
 function processTextMessage($message, $userId) {
-    $message = strtolower(trim($message));
+    global $gemini_api_key, $gemini_api_url;
     
-    // Simple response logic - you can expand this
-    switch ($message) {
-        case 'hello':
-        case 'hi':
-        case 'สวัสดี':
-            return "Hello! How can I help you today?";
-            
+    $originalMessage = trim($message);
+    $lowerMessage = strtolower($originalMessage);
+    
+    // Handle special commands first
+    switch ($lowerMessage) {
         case 'help':
         case 'ช่วยเหลือ':
-            return "Available commands:\n- hello: Say hello\n- time: Get current time\n- help: Show this help";
+            return "I'm an AI assistant powered by Gemini! You can:\n- Ask me questions\n- Have conversations\n- Get help with various topics\n- Type 'time' for current time\n\nJust send me any message and I'll respond!";
             
         case 'time':
         case 'เวลา':
-            return "Current time: " . date('Y-m-d H:i:s');
+            return "Current time: " . date('Y-m-d H:i:s (T)');
             
-        case 'bye':
-        case 'goodbye':
-        case 'ลาก่อน':
-            return "Goodbye! Have a nice day!";
-            
-        default:
-            // Echo the message back with a prefix
-            return "You said: " . $message;
+        case 'ping':
+            return "Pong! I'm online and ready to chat.";
     }
+    
+    // For all other messages, use Gemini AI
+    if (empty($gemini_api_key) || $gemini_api_key === 'YOUR_GEMINI_API_KEY_HERE') {
+        logMessage("Gemini API key not configured");
+        return "Sorry, my AI brain isn't configured yet. Please ask the admin to set up the Gemini API key.";
+    }
+    
+    // Prepare context for Gemini
+    $prompt = "You are a helpful and friendly chatbot assistant. Please respond to the following message in a conversational and helpful way. Keep responses concise but informative (max 500 characters for LINE messaging). Message: " . $originalMessage;
+    
+    logMessage("Calling Gemini API for user $userId with message: $originalMessage");
+    
+    // Call Gemini API
+    $geminiResponse = callGeminiAPI($prompt, $gemini_api_key, $gemini_api_url);
+    
+    logMessage("Gemini API response: " . $geminiResponse);
+    
+    // Truncate response if too long for LINE (LINE has a 5000 character limit)
+    if (strlen($geminiResponse) > 4900) {
+        $geminiResponse = substr($geminiResponse, 0, 4900) . "...";
+    }
+    
+    return $geminiResponse;
 }
 ?>

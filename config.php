@@ -13,6 +13,10 @@ return [
     // Get this from LINE Developers Console > Your Bot > Basic Settings > Channel Secret
     'channel_secret' => '09cc97b54fab9f912a40f40136fca303',
     
+    // Gemini API Key
+    // Get this from Google AI Studio: https://aistudio.google.com/app/apikey
+    'gemini_api_key' => 'AIzaSyAFfJqVL8eV8MmLaqyNj2to3vDLlDEwu6k',
+    
     // Webhook URL (this should point to your webhook.php file)
     'webhook_url' => 'https://ikeman.zhuge.jp/webhook.php',
     
