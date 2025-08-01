@@ -11,13 +11,16 @@ ini_set('display_errors', 1);
 // Set content type to JSON
 header('Content-Type: application/json');
 
+// Load configuration
+$config = require_once 'config.php';
+
 // LINE Bot configuration
-$channel_access_token = 'l00u1TIZSKGXSAi4occtJt9NOqTUULyyfNIKOjRVgMFyOPZGD35nBKWP85HbrV9DG2NytACYjqkXBCKpBmVmnY9PhDa8HGfqpI2D9cASTZtJmhsTcdeeQy3wRWDINBRn2hJUqGggyrUaBI79nmSJjAdB04t89/1O/w1cDnyilFU=';
-$channel_secret = '09cc97b54fab9f912a40f40136fca303';
+$channel_access_token = $config['channel_access_token'];
+$channel_secret = $config['channel_secret'];
 
 // Gemini API configuration
-$gemini_api_key = 'AIzaSyAFfJqVL8eV8MmLaqyNj2to3vDLlDEwu6k'; // Replace with your actual Gemini API key
-$gemini_api_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+$gemini_api_key = $config['gemini_api_key'];
+$gemini_api_url = $config['gemini_api_url'];
 
 /**
  * Verify the request signature from LINE
@@ -247,7 +250,7 @@ try {
  * Process text messages and generate responses using Gemini AI
  */
 function processTextMessage($message, $userId) {
-    global $gemini_api_key, $gemini_api_url;
+    global $gemini_api_key, $gemini_api_url, $config;
     
     $originalMessage = trim($message);
     $lowerMessage = strtolower($originalMessage);
