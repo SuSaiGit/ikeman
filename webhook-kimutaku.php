@@ -52,6 +52,7 @@ try {
     
     // Verify the signature using shared function
     if (!verifySignature($input, $signature, $channel_secret)) {
+        logMessage("Invalid signature", null, 'kimutaku');
         http_response_code(400);
         echo json_encode(['error' => 'Invalid signature']);
         exit;
