@@ -20,6 +20,12 @@ return [
     // Gemini API URL
     'gemini_api_url' => 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent',
     
+    // LINE Pay configuration
+    'line_pay_channel_id' => 'YOUR_LINE_PAY_CHANNEL_ID',
+    'line_pay_channel_secret' => 'YOUR_LINE_PAY_CHANNEL_SECRET',
+    'line_pay_sandbox' => true, // Set to false for production
+    'product_image_url' => 'https://yourdomain.com/product-image.jpg',
+    
     // Webhook URL (this should point to your webhook.php file)
     'webhook_url' => 'https://yourdomain.com/webhook.php',
     
