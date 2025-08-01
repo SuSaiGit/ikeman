@@ -13,8 +13,8 @@ header('Content-Type: application/json');
 
 // LINE Bot configuration
 // TODO: Replace with your actual LINE Bot credentials
-$channel_access_token = 'YOUR_CHANNEL_ACCESS_TOKEN';
-$channel_secret = 'YOUR_CHANNEL_SECRET';
+$channel_access_token = 'l00u1TIZSKGXSAi4occtJt9NOqTUULyyfNIKOjRVgMFyOPZGD35nBKWP85HbrV9DG2NytACYjqkXBCKpBmVmnY9PhDa8HGfqpI2D9cASTZtJmhsTcdeeQy3wRWDINBRn2hJUqGggyrUaBI79nmSJjAdB04t89/1O/w1cDnyilFU=';
+$channel_secret = '09cc97b54fab9f912a40f40136fca303';
 
 /**
  * Verify the request signature from LINE
@@ -80,12 +80,12 @@ try {
     // Get the signature from headers
     $signature = $_SERVER['HTTP_X_LINE_SIGNATURE'] ?? '';
     
-    // Verify the signature (uncomment when you have your channel secret)
-    // if (!verifySignature($input, $signature, $channel_secret)) {
-    //     http_response_code(400);
-    //     echo json_encode(['error' => 'Invalid signature']);
-    //     exit;
-    // }
+    Verify the signature (uncomment when you have your channel secret)
+    if (!verifySignature($input, $signature, $channel_secret)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid signature']);
+        exit;
+    }
     
     // Decode the JSON data
     $data = json_decode($input, true);
