@@ -179,63 +179,38 @@ function processTextMessage($message, $userId, $replyToken = null, $botName = 'd
     $lowerMessage = strtolower($originalMessage);
     
     // Handle special commands first (bot-specific responses)
-    if ($botName === 'kimutaku') {
-        switch ($lowerMessage) {
-            case 'help':
-            case 'ヘルプ':
-            case 'ช่วยเหลือ':
-                return "こんにちは！私はKimutaku Botです。Gemini AIを搭載しています！\n- 質問をしてください\n- 会話を楽しみましょう\n- 様々なトピックでお手伝いします\n- 'time'で現在時刻を表示\n\nメッセージを送ってください！";
-                
-            case 'time':
-            case '時間':
-            case 'เวลา':
-                return "現在時刻: " . date('Y年m月d日 H:i:s (T)') . " (Kimutaku Bot)";
-                
-            case 'ping':
-                return "Pong! Kimutaku Botはオンラインです！";
-                
-            case 'kimutaku':
-            case 'キムタク':
-            case 'kimura':
-            case 'キムラ':
-                return "はい、私がKimutaku Botです！何かお手伝いできることはありますか？";
-        }
-    } else {
-        // Default bot responses
-        switch ($lowerMessage) {
-            case 'help':
-            case 'ช่วยเหลือ':
-                return "I'm an AI assistant powered by Gemini! You can:\n- Ask me questions\n- Have conversations\n- Get help with various topics\n- Type 'time' for current time\n\nJust send me any message and I'll respond!";
-                
-            case 'time':
-            case 'เวลา':
-                return "Current time: " . date('Y-m-d H:i:s (T)');
-                
-            case 'ping':
-                return "Pong! I'm online and ready to chat.";
-        }
+    switch ($lowerMessage) {
+        case 'help':
+        case 'ヘルプ':
+        case 'ช่วยเหลือ':
+            return "こんにちは！私はKimutaku Botです。Gemini AIを搭載しています！\n- 質問をしてください\n- 会話を楽しみましょう\n- 様々なトピックでお手伝いします\n- 'time'で現在時刻を表示\n\nメッセージを送ってください！";
+            
+        case 'time':
+        case '時間':
+        case 'เวลา':
+            return "現在時刻: " . date('Y年m月d日 H:i:s (T)') . " (Kimutaku Bot)";
+            
+        case 'ping':
+            return "Pong! Kimutaku Botはオンラインです！";
+            
+        case 'kimutaku':
+        case 'キムタク':
+        case 'kimura':
+        case 'キムラ':
+            return "はい、私がKimutaku Botです！何かお手伝いできることはありますか？";
     }
     
     // For all other messages, use Gemini AI
     if (empty($gemini_api_key) || $gemini_api_key === 'YOUR_GEMINI_API_KEY_HERE') {
         logMessage("Gemini API key not configured", null, $botName);
-        if ($botName === 'kimutaku') {
-            return "申し訳ございませんが、AIの設定がまだ完了していません。管理者にGemini APIキーの設定を依頼してください。";
-        } else {
-            return "Sorry, my AI brain isn't configured yet. Please ask the admin to set up the Gemini API key.";
-        }
+        return "申し訳ございませんが、AIの設定がまだ完了していません。管理者にGemini APIキーの設定を依頼してください。";
     }
     
     // Prepare context for Gemini (use custom prompt if provided, otherwise use default based on bot)
     if ($customPrompt !== null) {
         $prompt = $customPrompt . $originalMessage;
     } else {
-        // Default prompts based on bot name
-        if ($botName === 'kimutaku') {
-            $prompt = "You are a helpful and friendly Japanese chatbot assistant named Kimutaku Bot. Please respond to the following message in a conversational and helpful way. Prefer Japanese responses when appropriate, but can respond in English or other languages if the user's message is in that language. Keep responses concise but informative (max 500 characters for LINE messaging). Message: " . $originalMessage;
-        } else {
-            $prompt = "You are a helpful and friendly chatbot assistant. Please respond to the following message in a conversational and helpful way. Keep responses concise but informative (max 500 characters for LINE messaging). Message: " . $originalMessage;
-        }
+        $prompt = "You are a helpful and friendly chatbot assistant. Please respond to the following message in a conversational and helpful way. Keep responses concise but informative (max 500 characters for LINE messaging). Message: " . $originalMessage;
     }
     
     logMessage("Calling Gemini API for user $userId with message: $originalMessage", null, $botName);
@@ -245,18 +220,9 @@ function processTextMessage($message, $userId, $replyToken = null, $botName = 'd
     
     logMessage("Gemini API response: " . $geminiResponse, null, $botName);
     
-    // Add bot-specific signature
-    if ($botName === 'kimutaku') {
-        $geminiResponse = $geminiResponse . "\n\n- Kimutaku Bot";
-    }
-    
     // Truncate response if too long for LINE (LINE has a 5000 character limit)
     if (strlen($geminiResponse) > 4900) {
-        if ($botName === 'kimutaku') {
-            $geminiResponse = substr($geminiResponse, 0, 4900) . "...\n\n- Kimutaku Bot";
-        } else {
-            $geminiResponse = substr($geminiResponse, 0, 4900) . "...";
-        }
+        $geminiResponse = substr($geminiResponse, 0, 4900) . "...";
     }
     
     return $geminiResponse;
