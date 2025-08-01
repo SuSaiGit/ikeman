@@ -143,8 +143,22 @@ function callGeminiAPI($message, $apiKey, $apiUrl) {
 
 /**
  * Log messages for debugging
+ * @param string $message The message to log
+ * @param string|null $logFile The log file to write to (default: 'webhook.log', or use botName parameter)
+ * @param string $botName The bot name to determine log file (default: 'default', kimutaku: 'kimutaku')
  */
-function logMessage($message, $logFile = 'webhook.log') {
+function logMessage($message, $logFile = null, $botName = 'default') {
+    global $config;
+    
+    // If no specific log file is provided, determine based on bot name
+    if ($logFile === null) {
+        if ($botName === 'kimutaku') {
+            $logFile = $config['kimutaku_log_file'] ?? 'webhook-kimutaku.log';
+        } else {
+            $logFile = 'webhook.log';
+        }
+    }
+    
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[$timestamp] $message" . PHP_EOL;
     file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
@@ -152,126 +166,100 @@ function logMessage($message, $logFile = 'webhook.log') {
 
 /**
  * Process text messages and generate responses using Gemini AI
+ * @param string $message The user's message
+ * @param string $userId The user's ID
+ * @param string|null $replyToken The reply token for responding
+ * @param string $botName The bot name (default: 'default', kimutaku: 'kimutaku')
+ * @param string|null $customPrompt Custom prompt for Gemini AI (if null, uses default based on botName)
  */
-function processTextMessage($message, $userId, $replyToken = null) {
+function processTextMessage($message, $userId, $replyToken = null, $botName = 'default', $customPrompt = null) {
     global $gemini_api_key, $gemini_api_url, $config, $channel_access_token;
     
     $originalMessage = trim($message);
     $lowerMessage = strtolower($originalMessage);
     
-    // Handle special commands first
-    switch ($lowerMessage) {
-        case 'help':
-        case 'ช่วยเหลือ':
-            return "I'm an AI assistant powered by Gemini! You can:\n- Ask me questions\n- Have conversations\n- Get help with various topics\n- Type 'time' for current time\n- Type 'pay' to test payment\n\nJust send me any message and I'll respond!";
-            
-        case 'time':
-        case 'เวลา':
-            return "Current time: " . date('Y-m-d H:i:s (T)');
-            
-        case 'ping':
-            return "Pong! I'm online and ready to chat.";
-            
-        case 'pay':
-        case 'payment':
-        case 'ชำระเงิน':
-            // Handle payment request
-            if ($replyToken) {
-                return handlePaymentRequest($userId, $replyToken);
-            } else {
-                return "Payment feature requires a reply token.";
-            }
+    // Handle special commands first (bot-specific responses)
+    if ($botName === 'kimutaku') {
+        switch ($lowerMessage) {
+            case 'help':
+            case 'ヘルプ':
+            case 'ช่วยเหลือ':
+                return "こんにちは！私はKimutaku Botです。Gemini AIを搭載しています！\n- 質問をしてください\n- 会話を楽しみましょう\n- 様々なトピックでお手伝いします\n- 'time'で現在時刻を表示\n\nメッセージを送ってください！";
+                
+            case 'time':
+            case '時間':
+            case 'เวลา':
+                return "現在時刻: " . date('Y年m月d日 H:i:s (T)') . " (Kimutaku Bot)";
+                
+            case 'ping':
+                return "Pong! Kimutaku Botはオンラインです！";
+                
+            case 'kimutaku':
+            case 'キムタク':
+            case 'kimura':
+            case 'キムラ':
+                return "はい、私がKimutaku Botです！何かお手伝いできることはありますか？";
+        }
+    } else {
+        // Default bot responses
+        switch ($lowerMessage) {
+            case 'help':
+            case 'ช่วยเหลือ':
+                return "I'm an AI assistant powered by Gemini! You can:\n- Ask me questions\n- Have conversations\n- Get help with various topics\n- Type 'time' for current time\n\nJust send me any message and I'll respond!";
+                
+            case 'time':
+            case 'เวลา':
+                return "Current time: " . date('Y-m-d H:i:s (T)');
+                
+            case 'ping':
+                return "Pong! I'm online and ready to chat.";
+        }
     }
     
     // For all other messages, use Gemini AI
     if (empty($gemini_api_key) || $gemini_api_key === 'YOUR_GEMINI_API_KEY_HERE') {
-        logMessage("Gemini API key not configured");
-        return "Sorry, my AI brain isn't configured yet. Please ask the admin to set up the Gemini API key.";
+        logMessage("Gemini API key not configured", null, $botName);
+        if ($botName === 'kimutaku') {
+            return "申し訳ございませんが、AIの設定がまだ完了していません。管理者にGemini APIキーの設定を依頼してください。";
+        } else {
+            return "Sorry, my AI brain isn't configured yet. Please ask the admin to set up the Gemini API key.";
+        }
     }
     
-    // Prepare context for Gemini
-    $prompt = "You are a helpful and friendly chatbot assistant. Please respond to the following message in a conversational and helpful way. Keep responses concise but informative (max 500 characters for LINE messaging). Message: " . $originalMessage;
+    // Prepare context for Gemini (use custom prompt if provided, otherwise use default based on bot)
+    if ($customPrompt !== null) {
+        $prompt = $customPrompt . $originalMessage;
+    } else {
+        // Default prompts based on bot name
+        if ($botName === 'kimutaku') {
+            $prompt = "You are a helpful and friendly Japanese chatbot assistant named Kimutaku Bot. Please respond to the following message in a conversational and helpful way. Prefer Japanese responses when appropriate, but can respond in English or other languages if the user's message is in that language. Keep responses concise but informative (max 500 characters for LINE messaging). Message: " . $originalMessage;
+        } else {
+            $prompt = "You are a helpful and friendly chatbot assistant. Please respond to the following message in a conversational and helpful way. Keep responses concise but informative (max 500 characters for LINE messaging). Message: " . $originalMessage;
+        }
+    }
     
-    logMessage("Calling Gemini API for user $userId with message: $originalMessage");
+    logMessage("Calling Gemini API for user $userId with message: $originalMessage", null, $botName);
     
     // Call Gemini API
     $geminiResponse = callGeminiAPI($prompt, $gemini_api_key, $gemini_api_url);
     
-    logMessage("Gemini API response: " . $geminiResponse);
+    logMessage("Gemini API response: " . $geminiResponse, null, $botName);
+    
+    // Add bot-specific signature
+    if ($botName === 'kimutaku') {
+        $geminiResponse = $geminiResponse . "\n\n- Kimutaku Bot";
+    }
     
     // Truncate response if too long for LINE (LINE has a 5000 character limit)
     if (strlen($geminiResponse) > 4900) {
-        $geminiResponse = substr($geminiResponse, 0, 4900) . "...";
+        if ($botName === 'kimutaku') {
+            $geminiResponse = substr($geminiResponse, 0, 4900) . "...\n\n- Kimutaku Bot";
+        } else {
+            $geminiResponse = substr($geminiResponse, 0, 4900) . "...";
+        }
     }
     
     return $geminiResponse;
-}
-
-/**
- * Handle payment request
- */
-function handlePaymentRequest($userId, $replyToken) {
-    global $config, $channel_access_token;
-    
-    try {
-        // Check if LINE Pay is available
-        if (!class_exists('LinePayHandler')) {
-            require_once 'line_pay.php';
-        }
-        
-        $linePayHandler = new LinePayHandler($config);
-        
-        // Sample product details (customize as needed)
-        $productName = "Sample Product";
-        $amount = 100; // Amount in smallest currency unit (e.g., cents for USD, yen for JPY)
-        $currency = "JPY";
-        $orderId = "order_" . time() . "_" . $userId;
-        
-        $confirmUrl = str_replace('/webhook.php', '/payment_confirm.php', $config['webhook_url']);
-        $cancelUrl = str_replace('/webhook.php', '/payment_cancel.php', $config['webhook_url']);
-        
-        // Request payment
-        $paymentResult = $linePayHandler->requestPayment(
-            $amount,
-            $currency,
-            $orderId,
-            $productName,
-            $confirmUrl,
-            $cancelUrl
-        );
-        
-        if ($paymentResult['success']) {
-            // Store payment data for confirmation
-            session_start();
-            $_SESSION['payment_' . $paymentResult['transactionId']] = [
-                'amount' => $amount,
-                'currency' => $currency,
-                'orderId' => $orderId,
-                'userId' => $userId
-            ];
-            
-            // Create and send flex message
-            $flexMessage = $linePayHandler->createPaymentFlexMessage(
-                $productName,
-                $amount,
-                $currency,
-                $paymentResult['paymentUrl']
-            );
-            
-            sendFlexMessage($replyToken, $flexMessage, $channel_access_token);
-            logMessage("Payment request sent to user $userId: " . json_encode($paymentResult));
-            
-            return null; // Don't send text response since we sent flex message
-            
-        } else {
-            logMessage("Payment request failed for user $userId: " . $paymentResult['error']);
-            return "Sorry, I couldn't create a payment request right now. Please try again later.";
-        }
-        
-    } catch (Exception $e) {
-        logMessage("Payment request error for user $userId: " . $e->getMessage());
-        return "Sorry, there was an error processing your payment request.";
-    }
 }
 
 /**
@@ -301,10 +289,14 @@ function parseMessageContext($event) {
 
 /**
  * Process LINE webhook events
+ * @param array $events The events from LINE webhook
+ * @param string $channel_access_token The channel access token
+ * @param string $botName The bot name (default: 'default', kimutaku: 'kimutaku')
+ * @param string|null $customPrompt Custom prompt for Gemini AI (if null, uses default based on botName)
  */
-function processWebhookEvents($events, $channel_access_token) {
+function processWebhookEvents($events, $channel_access_token, $botName = 'default', $customPrompt = null) {
     foreach ($events as $event) {
-        logMessage("Processing event: " . json_encode($event));
+        logMessage("Processing event: " . json_encode($event), null, $botName);
         
         $eventType = $event['type'];
         $replyToken = $event['replyToken'] ?? '';
@@ -317,36 +309,48 @@ function processWebhookEvents($events, $channel_access_token) {
                     $userMessage = $event['message']['text'];
                     $messageContext = parseMessageContext($event);
                     
-                    logMessage("Text message from {$messageContext['userId']} in {$messageContext['context']}: $userMessage");
+                    logMessage("Text message from {$messageContext['userId']} in {$messageContext['context']}: $userMessage", null, $botName);
                     
                     // Process the message and generate a response
-                    $response = processTextMessage($userMessage, $messageContext['userId'], $replyToken);
+                    $response = processTextMessage($userMessage, $messageContext['userId'], $replyToken, $botName, $customPrompt);
                     
                     // Reply to the user (only if response is not null)
                     if ($replyToken && $response !== null) {
                         $result = replyMessage($replyToken, $response, $channel_access_token);
-                        logMessage("Reply sent to {$messageContext['context']}: " . json_encode($result));
+                        logMessage("Reply sent to {$messageContext['context']}: " . json_encode($result), null, $botName);
                     }
                     
                 } elseif ($messageType === 'image') {
-                    logMessage("Image message received");
-                    // Handle image messages
-                    $response = "Thank you for sending an image!";
+                    logMessage("Image message received", null, $botName);
+                    // Handle image messages (bot-specific responses)
+                    if ($botName === 'kimutaku') {
+                        $response = "こんにちは！画像をありがとうございます！ (Kimutaku Bot)";
+                    } else {
+                        $response = "Thank you for sending an image!";
+                    }
                     if ($replyToken) {
                         replyMessage($replyToken, $response, $channel_access_token);
                     }
                     
                 } elseif ($messageType === 'audio') {
-                    logMessage("Audio message received");
-                    // Handle audio messages
-                    $response = "Thank you for sending an audio message!";
+                    logMessage("Audio message received", null, $botName);
+                    // Handle audio messages (bot-specific responses)
+                    if ($botName === 'kimutaku') {
+                        $response = "音声メッセージをありがとうございます！ (Kimutaku Bot)";
+                    } else {
+                        $response = "Thank you for sending an audio message!";
+                    }
                     if ($replyToken) {
                         replyMessage($replyToken, $response, $channel_access_token);
                     }
                     
                 } else {
-                    logMessage("Unsupported message type: $messageType");
-                    $response = "Sorry, I don't support this message type yet.";
+                    logMessage("Unsupported message type: $messageType", null, $botName);
+                    if ($botName === 'kimutaku') {
+                        $response = "申し訳ございませんが、そのメッセージタイプはサポートしていません。 (Kimutaku Bot)";
+                    } else {
+                        $response = "Sorry, I don't support this message type yet.";
+                    }
                     if ($replyToken) {
                         replyMessage($replyToken, $response, $channel_access_token);
                     }
@@ -354,26 +358,30 @@ function processWebhookEvents($events, $channel_access_token) {
                 break;
                 
             case 'follow':
-                logMessage("New follower");
-                $response = "Hello! Thank you for adding me as a friend!";
+                logMessage("New follower", null, $botName);
+                if ($botName === 'kimutaku') {
+                    $response = "こんにちは！友達に追加していただき、ありがとうございます！私はKimutaku Botです。";
+                } else {
+                    $response = "Hello! Thank you for adding me as a friend!";
+                }
                 if ($replyToken) {
                     replyMessage($replyToken, $response, $channel_access_token);
                 }
                 break;
                 
             case 'unfollow':
-                logMessage("User unfollowed");
+                logMessage("User unfollowed", null, $botName);
                 // Handle unfollow event
                 break;
                 
             case 'postback':
                 $postbackData = $event['postback']['data'];
-                logMessage("Postback received: $postbackData");
+                logMessage("Postback received: $postbackData", null, $botName);
                 // Handle postback data
                 break;
                 
             default:
-                logMessage("Unsupported event type: $eventType");
+                logMessage("Unsupported event type: $eventType", null, $botName);
         }
     }
 }
